@@ -6,7 +6,7 @@ import pickle
 from nltk.corpus import stopwords
 
 #importing dataset
-trascript_data = load_files(r'D:\Level 4 Semester 1\project\Demo\resources')
+trascript_data = load_files(r'D:\Level 4 Semester 1\project\data-sets\2.Principles and Words-20190603T102214Z-001\2.Principles and Words')
 X, y = trascript_data.data, trascript_data.target
 
 #preprocessing
@@ -43,8 +43,4 @@ for sen in range(0, len(X)):
 
     documents.append(document)
 
-#Converting Text to Numbers
-#Bag of Words
-from sklearn.feature_extraction.text import CountVectorizer
-vectorizer = CountVectorizer(max_features=1500, min_df=5, max_df=0.7, stop_words=stopwords.words('english'))
-X = vectorizer.fit_transform(documents).toarray()
+print("hello")
