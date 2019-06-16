@@ -1,7 +1,25 @@
 import nltk
+from nltk.corpus import stopwords
+import fpdf
 
-# Text Tokenization
+# Text tokenization.
 fileObj = open('D:/Level 4 Semester 1/project/FYP/dataset/1.txt', 'r', encoding="mbcs")
 text = fileObj.read()
-tokens = nltk.sent_tokenize(text)
-print(tokens)
+words = nltk.word_tokenize(text)
+
+
+# Identifying stops words in english.
+stopWords = set(stopwords.words('english'))
+wordsFiltered = []
+
+# Filtering stopwords.
+for w in words:
+    if w not in stopWords:
+        wordsFiltered.append(w)
+
+# Chunking words in equal word count
+# n = no.of words
+n = 10
+final = [wordsFiltered[i * n:(i + 1) * n] for i in range((len(wordsFiltered) + n - 1) // n)]
+
+print(final)
