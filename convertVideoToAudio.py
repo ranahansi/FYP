@@ -6,7 +6,7 @@ for time in time_Of_Visual_Changes:
     fileName = time
     time = time*60
     clip = mp.VideoFileClip("data-sets/2.Principles and Words-20190603T102214Z-001/2.Principles and Words/1.mp4").subclip(start_Time, time)
-    clip.audio.write_audiofile('audio set/%s.mp3' % fileName)
+    clip.audio.write_audiofile('audio set/%s.wav' % fileName)
     start_Time = time
 
     clip.reader.close()
