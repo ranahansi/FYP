@@ -1,9 +1,9 @@
-import convertVideoToAudio
+import convertingAudioContentToText
 
 
 def main():
-    print(convertVideoToAudio.audioSegmentation())
-
+    seperatedTextContents = convertingAudioContentToText.audioTranscriptSegmentation()
+    print(seperatedTextContents)
 
 if __name__ == "__main__":
         main()
