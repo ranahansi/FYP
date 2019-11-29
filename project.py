@@ -103,10 +103,14 @@ def score_keyphrases_by_textrank(text, n_keywords=0.05):
 
 
 def test():
-    fileObj = open('dataset/1.txt', 'r', encoding="mbcs")
+    fileObj = open('data-sets/verb tenses and verb moods.txt', 'r', encoding="utf-8")
     text = fileObj.read()
-    result = score_keyphrases_by_tfidf(text)
-    print(score_keyphrases_by_textrank(text))
+    result1 = score_keyphrases_by_tfidf(text)
+    result2 = score_keyphrases_by_textrank(text)
+    f = open("output text files/verb tenses and verb moods.txt", "a")
+    for result in result2:
+        print(result, file=f)
+    f.close()
     # new_topics = result[0]
     #
     # for topic in new_topics:
