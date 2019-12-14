@@ -1,70 +1,166 @@
-import re
+import difflib
+
 import nltk
-import speech_recognition as sr
+import spacy
+import speech_recognition as spreg
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 import convertVideoToAudio
+import maninTopicIdentification
 
-# method to segmenting transcript content according to audio segments
-def audioTranscriptSegmentation():
+
+# method to read the transcript file.
+def read_the_transcript_file(file_path):
+    """method to read the transcript file"""
     # open and read the transcript file.
-    fileObj = open('data-sets/verb tences and verb moods.txt', 'r', encoding="utf-8")
-    text = fileObj.read()
+    file_obj = open(file_path, 'r', encoding="UTF-8")
+    # removing unnecessary spaces.
+    text = file_obj.read().replace("\n", "")
+    return text
 
-    # sentence tokenization in transcript.
-    tokens = nltk.sent_tokenize(text)
-    splitText = text.splitlines()
 
-    # method call to segmenting audio file
-    audioFilePathList = convertVideoToAudio.audioSegmentation()
-    timestamp_sentences_content = {}
-    for audio_filepath in audioFilePathList:
+# method for sentence tokenizer in transcript.
+def sentence_tokenizer(text):
+    """method for sentence tokenizer in transcript"""
+    nlp = spacy.load('en_core_web_sm')
+    # generating sentences list.
+    about_doc = nlp(text)
+    sentence_tokens = list(about_doc.sents)
+    len(sentence_tokens)
+    return sentence_tokens
 
-        r = sr.Recognizer()
 
-        with sr.AudioFile(audio_filepath) as source:
-            # reads the audio file. Here we use record instead of
-            # listen
-            audio = r.record(source)
-
+# transcribe the audio file.
+def transcribe_audio_file(file_path):
+    """transcribe the audio file"""
+    sound_file = file_path
+    recog = spreg.Recognizer()
+    with spreg.AudioFile(sound_file) as source:
+        # use record instead of listning
+        speech = recog.record(source)
         try:
-            audio_content = r.recognize_google(audio, language='en')
+            text = recog.recognize_google(speech, language="en-AUS")
+            # print('The file contains: ' + text)
+            return text
+        except spreg.UnknownValueError:
+            # print('Unable to recognize the audio')
+            return 0
+        except spreg.RequestError as e:
+            print("Request error from Google Speech Recognition service; {}".format(e))
 
-            stop_words = set(stopwords.words('english'))
 
-            #word tokenization
-            word_tokens = word_tokenize(audio_content)
+# method to segmenting transcribe text by the time
+def segmenting_transcribe_text(audio_list):
+    """method to segmenting transcribe text by the time"""
+    transcribe_text_list = []
+    transcribe_key = 1
+    for audio in audio_list:
+        transcribe_text_dic = {}
+        audio_file_path = audio.get('file path')
+        audio_file_time = audio.get('time')
+        transcribe_text_dic['key'] = transcribe_key
+        transcribe_text_dic['time'] = audio_file_time
+        transcribe_text = transcribe_audio_file(audio_file_path)
+        if transcribe_text != 0:
+            transcribe_text_dic['transcribe text'] = transcribe_text
+        else:
+            transcribe_text_dic['transcribe text'] = 0
+        transcribe_text_list.append(transcribe_text_dic)
+        transcribe_key = transcribe_key + 1
+    return transcribe_text_list
 
-            filtered_sentence = []
-            # Removing stop words from the transcribe content
-            for w in word_tokens:
-                if w not in stop_words:
-                    search_word = w
-                    for u in splitText:
-                        if search_word in u:
-                            # apending sentences to list which are first occurence in searched word.
-                            filtered_sentence.append(u)
-                            break
 
-            if not filtered_sentence:
-                key_of_dict = re.findall("\d+\.\d+", audio_filepath)
-                timestamp_sentences_content[key_of_dict[0]] = "No content available"
+# method to word tokenizer
+def word_tokenizing(text):
+    """method to word tokenizer"""
+    word_tokens = nltk.word_tokenize(text)
+    return word_tokens
+
+
+# method to remove stop words
+def stop_words_remover(text_tokens):
+    """method to remove stop words"""
+    stop_words = set(stopwords.words('english'))
+    filtered_text_tokens = []
+
+    for w in text_tokens:
+        if w not in stop_words:
+            filtered_text_tokens.append(w)
+    return filtered_text_tokens
+
+
+# method to check given word in sentence
+def check_word_in_sentence(word, sentence):
+    """method to check given word in sentence"""
+    if word in sentence:
+        return True
+
+
+# check the similarity of two words.
+def check_similarity(sentence_token_str, text_tokens):
+    """check whether given two words are similar or not"""
+    similar_words = []
+    sentence_token_str_without_punctuation = maninTopicIdentification.removing_punctuation(sentence_token_str)
+    for token1 in text_tokens:
+        for token2 in sentence_token_str_without_punctuation:
+            seq = difflib.SequenceMatcher(None, token1, token2)
+            d = seq.ratio() * 100
+            if d > 75:
+                similar_words.append(token2)
                 break
-            else:
-                print("The last element of list using reverse : " + str(filtered_sentence[0]))
-                updatedIndex = splitText.index(str(filtered_sentence[0])) + 1
-                text_content_name = splitText[:updatedIndex]
+    return similar_words
 
-                # Extracting floating point(timestamp of frame change) from string
-                key_of_dict = re.findall("\d+\.\d+", audio_filepath)
-                timestamp_sentences_content[key_of_dict[0]] = text_content_name
-                del splitText[:updatedIndex]
 
-        except sr.UnknownValueError:
-            print("Google Speech Recognition could not understand audio")
+# method to identify time based relevant content
+def content_identifier(sentence_tokens, text_tokens):
+    """method to identify time based relevant content"""
+    selected_sentences = []
+    for sentence_token in sentence_tokens:
+        sentence_token_str = word_tokenizing(str(sentence_token))
+        convert_to_lower_case = map(str.lower, sentence_token_str)
+        lower_case_sentence_token_list = list(convert_to_lower_case)
+        after_checking_similarity_words = check_similarity(lower_case_sentence_token_list, text_tokens)
+        total_word_count = len(lower_case_sentence_token_list)
+        similar_words = set(lower_case_sentence_token_list) & set(text_tokens)
+        similar_words_list = list(similar_words)
+        total_similar_words = after_checking_similarity_words + similar_words_list
+        word_count = len(total_similar_words)
+        total_word_count_percentage = (word_count * total_word_count)/100
 
-        except sr.RequestError as e:
-            print("Could not request results from Google SpeechRecognitionservice;{0}".format(e))
-    timestamp_sentences_content["remaining"] = splitText
+        if word_count >= 5:
+            selected_sentences.append(sentence_token)
+        else:
+            break
+    return selected_sentences
 
-    return timestamp_sentences_content
+
+# main method to segmenting transcript content according to audio segments
+def audio_transcript_segmentation():
+    """control the main method"""
+    text = read_the_transcript_file('data-sets/verb tenses and verb moods.txt')
+    sentence_tokens = sentence_tokenizer(text)
+    audio_list = convertVideoToAudio.audio_segmentation()
+    transcribe_text_list = segmenting_transcribe_text(audio_list)
+    print(transcribe_text_list)
+    time_align_contents = []
+    for transcribe_text in transcribe_text_list:
+        time_align_content = {}
+        time = transcribe_text.get('time')
+        text = transcribe_text.get('transcribe text')
+        if text != 0:
+            text_tokens = word_tokenizing(str(text))
+            # filtered_text_tokens = stop_words_remover(text_tokens)
+            time_align_content['time'] = time
+            time_align_content_list = []
+            time_align_content['sentences'] = time_align_content_list
+            selected_sentences = content_identifier(sentence_tokens, text_tokens)
+            if selected_sentences:
+                for selected_sentence in selected_sentences:
+                    time_align_content_list.append(selected_sentence)
+                    sentence_tokens.remove(selected_sentence)
+
+        time_align_contents.append(time_align_content)
+    print(time_align_contents)
+
+
+if __name__ == "__main__":
+    audio_transcript_segmentation()
