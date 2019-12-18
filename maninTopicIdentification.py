@@ -186,7 +186,7 @@ def read_the_transcript_file(file_path):
 
 
 def main_topic_identification():
-    text = read_the_transcript_file('data-sets/function and degree of the comparisson.txt')
+    text = read_the_transcript_file('data-sets/adjective sequence and punctuation.txt')
     sentence_tokens = sentence_tokenizer(text)
     sentence_tokens_to_topics_identification = sentence_tokens
     write_sentence_tokens_to_text_file(sentence_tokens_to_topics_identification)
@@ -273,7 +273,7 @@ def main_topic_identification():
         main_topic_of_the_transcript = main_topic
 
     # writing the topic sentence inside the text file.
-    f = open("output text files/function and degree of the comparisson.txt", "a")
+    f = open("output text files/verb tenses and verb moods.txt", "a")
     print(main_topic_of_the_transcript, file=f)
     f.close()
 
