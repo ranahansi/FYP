@@ -1,17 +1,19 @@
 import difflib
-import itertools, nltk, string
-import gensim
 from itertools import takewhile, tee
+import itertools
+
 import networkx
+import nltk
+import string
+import gensim
 import spacy
 from nltk.stem import PorterStemmer
-import convertingAudioContentToText
 
-ps = PorterStemmer()
+porter_stemmer = PorterStemmer()
 
 
 def extract_candidate_chunks(text, grammar=r'KT: {(<JJ>* <NN.*>+ <IN>)? <JJ>* <NN.*>+}'):
-
+    """this method for extracting chunks"""
     # exclude candidates that are stop words or entirely punctuation
     punct = set(string.punctuation)
     stop_words = set(nltk.corpus.stopwords.words('english'))
@@ -29,7 +31,7 @@ def extract_candidate_chunks(text, grammar=r'KT: {(<JJ>* <NN.*>+ <IN>)? <JJ>* <N
 
 
 def extract_candidate_words(text, good_tags=set(['JJ','JJR','JJS','NN','NNP','NNS','NNPS'])):
-
+    """this method for extracting words"""
     # exclude candidates that are stop words or entirely punctuation
     punct = set(string.punctuation)
     stop_words = set(nltk.corpus.stopwords.words('english'))
@@ -45,7 +47,7 @@ def extract_candidate_words(text, good_tags=set(['JJ','JJR','JJS','NN','NNP','NN
 
 
 def score_keyphrases_by_tfidf(texts, candidates='chunks'):
-
+    """this method is used for get the tfidf of key-phrases"""
     # extract candidates from each text in texts, either chunks or words
     if candidates == 'chunks':
         boc_texts = [extract_candidate_chunks(text) for text in texts]
@@ -62,7 +64,7 @@ def score_keyphrases_by_tfidf(texts, candidates='chunks'):
 
 
 def score_keyphrases_by_textrank(text, n_keywords=0.05):
-
+    """this method is used for get the text rank of key-phrases"""
     # tokenize for all words, and extract *candidate* words
     words = [word.lower()
              for sent in nltk.sent_tokenize(text)
@@ -75,13 +77,13 @@ def score_keyphrases_by_textrank(text, n_keywords=0.05):
     # iterate over word-pairs, add unweighted edges into graph
     def pairwise(iterable):
         """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-        a, b = tee(iterable)
-        next(b, None)
-        return zip(a, b)
+        a_from_pair, b_from_pair = tee(iterable)
+        next(b_from_pair, None)
+        return zip(a_from_pair, b_from_pair)
 
-    for w1, w2 in pairwise(candidates):
-        if w2:
-            graph.add_edge(*sorted([w1, w2]))
+    for word1, word2 in pairwise(candidates):
+        if word2:
+            graph.add_edge(*sorted([word1, word2]))
     # score nodes using default pagerank algorithm, sort by score, keep top n_keywords
     ranks = networkx.pagerank(graph)
     if 0 < n_keywords < 1:
@@ -133,8 +135,8 @@ def check_root_of_word(key_phrase, main_topic__sentence):
     tokenized_key_phrase_without_punctuation = removing_punctuation(tokenized_key_phrase)
     if len(tokenized_key_phrase_without_punctuation) == 1:
         for token in main_topic_tokens_without_punctuation:
-            topic_sentence_word_root = ps.stem(str(token))
-            key_phrase_word_root = ps.stem(tokenized_key_phrase_without_punctuation[0])
+            topic_sentence_word_root = porter_stemmer.stem(str(token))
+            key_phrase_word_root = porter_stemmer.stem(tokenized_key_phrase_without_punctuation[0])
             if topic_sentence_word_root == key_phrase_word_root:
                 similar_root_words.append(key_phrase_word_root)
                 break
@@ -149,8 +151,8 @@ def check_similarity(key_phrase, main_topic__sentence):
     main_topic_tokens_without_punctuation = removing_punctuation(tokenized_main_topic_sentence)
     for token in main_topic_tokens_without_punctuation:
         seq = difflib.SequenceMatcher(None, token, key_phrase)
-        d = seq.ratio() * 100
-        if d > 75:
+        similarity = seq.ratio() * 100
+        if similarity > 75:
             similar_words.append(token)
             break
     return similar_words
@@ -158,6 +160,7 @@ def check_similarity(key_phrase, main_topic__sentence):
 
 # remove punctuation marks in given list.
 def removing_punctuation(tokens):
+    """this method is used for removing punctuations"""
     punctuations = '''!()-[]{};:'",<>./?@#$%^&*_~'''
     for token in tokens:
         if token in punctuations:
@@ -185,14 +188,15 @@ def read_the_transcript_file(file_path):
     return text
 
 
-def main_topic_identification():
-    text = read_the_transcript_file('data-sets/adjective sequence and punctuation.txt')
+def main_topic_identification(main_audio_transcript):
+    """main method to generate time-aligned content"""
+    text = read_the_transcript_file(main_audio_transcript)
     sentence_tokens = sentence_tokenizer(text)
     sentence_tokens_to_topics_identification = sentence_tokens
     write_sentence_tokens_to_text_file(sentence_tokens_to_topics_identification)
     # read the sentence tokenized transcript file.
-    fileObj = open('myOutFile.txt', 'r', encoding="utf8")
-    text = fileObj.read()
+    file_obj = open('myOutFile.txt', 'r', encoding="utf8")
+    text = file_obj.read()
     sentences = sentence_tokenizer(text)
 
     # identifying the topic sentence.
@@ -201,25 +205,20 @@ def main_topic_identification():
     third_sentence = sentences[2]
     if len(first_sentence) > 15:
         main_topic__sentence = first_sentence
-        print(main_topic__sentence)
     elif len(second_sentence) > 15:
         first_sentence = second_sentence
         main_topic__sentence = first_sentence
-        print(main_topic__sentence)
     else:
         first_sentence = third_sentence
         main_topic__sentence = first_sentence
-        print(main_topic__sentence)
 
     # extracting key phrases with their frequencies.
-    result1 = score_keyphrases_by_tfidf(text)
     result2 = score_keyphrases_by_textrank(text)
 
     # print score of keyphrases by tfidf.
     # new_topics = result1[0]
     # for topic in new_topics:
     #     print(topic)
-    print(result2)
 
     # extract the topic phrase from topic sentence.
     common_phrases_list = []
@@ -241,7 +240,6 @@ def main_topic_identification():
         elif similar_words:
             for similar_word in similar_words:
                 common_phrases_list.append(similar_word)
-    print(common_phrases_list)
     first_phrase = common_phrases_list[0]
     last_phrase = common_phrases_list[len(common_phrases_list)-1]
 
@@ -266,17 +264,21 @@ def main_topic_identification():
     if has_punctuation:
         punctuation_mark = main_topic[index_of_punctuation]
         extract_the_main_topic = main_topic.split(punctuation_mark)
-        print(extract_the_main_topic[0])
         main_topic_of_the_transcript = extract_the_main_topic[0]
     else:
-        print(main_topic)
         main_topic_of_the_transcript = main_topic
 
     # writing the topic sentence inside the text file.
-    f = open("output text files/verb tenses and verb moods.txt", "a")
-    print(main_topic_of_the_transcript, file=f)
-    f.close()
+    file = open("output text files/verb tenses and verb moods.txt", "a")
+    print(main_topic_of_the_transcript, file=file)
+    file.close()
+
+    return main_topic_of_the_transcript
 
 
-if __name__ == "__main__":
-    main_topic_identification()
+def compare_two_main_topics(video_main_topic, transcript_main_topic):
+    """this method is used to compare two topics comming under the video and transcript"""
+    # Calculate your similarity value
+    similar_word_set = set(transcript_main_topic) and set(video_main_topic)
+    if similar_word_set:
+        return video_main_topic
